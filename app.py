@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from flask import Flask, jsonify, request
 
 from signals.llm_signal import classify_with_llm
+from signals.stylo_signal import classify_with_stylometrics
 
 app = Flask(__name__)
 
@@ -62,10 +63,11 @@ def submit():
         return jsonify({"error": "field 'creator_id' is required"}), 400
 
     llm_score = classify_with_llm(text)
-    attribution = _attribution_for(llm_score)
+    stylo_score = classify_with_stylometrics(text)
+    combined_score = (llm_score * 0.7) + (stylo_score * 0.3)
+    attribution = _attribution_for(combined_score)
 
     content_id = str(uuid.uuid4())
-    # TODO(M4): combine with stylometric signal via the 0.7/0.3 weighted formula.
     # TODO(M5): generate the real transparency label text.
     label = "Attribution label pending (M5)"
 
@@ -75,7 +77,9 @@ def submit():
         "creator_id": creator_id,
         "text": text,
         "llm_score": llm_score,
-        "confidence": llm_score,
+        "stylo_score": stylo_score,
+        "combined_score": combined_score,
+        "confidence": combined_score,
         "attribution": attribution,
         "label": label,
         "status": "classified",
@@ -86,7 +90,7 @@ def submit():
         {
             "content_id": content_id,
             "attribution": attribution,
-            "confidence": llm_score,
+            "confidence": combined_score,
             "label": label,
         }
     )
