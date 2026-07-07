@@ -1,0 +1,13 @@
+[
+  {
+    "content_id": "74dbb380-2f43-4ced-a430-5543a76620a8",
+    "timestamp": "2026-07-07T06:59:23.227331+00:00",
+    "creator_id": "test-1",
+    "text": "It is important to note that AI represents a transformative paradigm shift.",
+    "llm_score": 0.8,
+    "confidence": 0.8,
+    "attribution": "likely_ai",
+    "label": "Attribution label pending (M5)",
+    "status": "classified"
+  }
+]
