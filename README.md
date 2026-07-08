@@ -190,10 +190,12 @@ curl http://127.0.0.1:5000/log
 
 ## Spec Reflection
 
-[TODO — fill in]
+Having the submission flow mapped out in planning.md before writing any code made implementation straightforward — the sequence of clean, call LLM, call stylometrics, combine scores, generate label, log, respond was already decided, so each function had a clear job.
+Two implementation details diverged from the spec in useful ways. First, appeal records in the audit log are tagged with type: "appeal" while classification entries have no type field — this allows the appeal lookup to reliably find the original submission without accidentally matching a prior appeal sharing the same content_id, a collision case the spec didn't anticipate. Second, the audit log uses a full-file read-modify-write on each submission rather than append-only writes. This is safe for the project's scope since Flask's dev server is single-threaded, but a production version would need a write lock or a proper database.
 
 ---
 
 ## AI Usage
 
-[TODO — fill in]
+Claude Code (VS Code) was used across M3–M5. For M3, I provided the submission flow diagram and Signal 1 spec from planning.md and asked it to generate the Flask app skeleton, POST /submit route, and classify_with_llm() function. The generated Groq prompt returned scores as strings in some cases rather than floats, which required a fix to cast the parsed value explicitly.
+For M5, I provided the label variant text and appeals workflow section from planning.md and asked it to implement get_label(), POST /appeal, and Flask-Limiter. The rate limiter initially failed to trigger 429s because the limiter was initialized after route registration — reordering the setup resolved it.
