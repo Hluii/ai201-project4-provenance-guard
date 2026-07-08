@@ -139,18 +139,18 @@ curl -X POST http://127.0.0.1:5000/submit \
   -d '{"text": "...", "creator_id": "creator-123"}'
 ```
 
-**AI example** — short AI-generated text scored by both signals:
+**AI example** — a multi-sentence AI-generated passage (heavy transitional phrasing, uniform structure):
 
 ```json
 {
   "content_id": "…",
-  "attribution": "uncertain",
-  "confidence": 0.63,
-  "label": "Attribution Unclear\nOur analysis found mixed signals for this content. …"
+  "attribution": "likely_ai",
+  "confidence": 0.77,
+  "label": "AI-Assisted Content Detected\nOur analysis found strong indicators that this content was likely generated or substantially written by an AI tool. Confidence: 77%. …"
 }
 ```
 
-Even though the text was AI-generated, its short length made the stylometric signal unreliable, pulling the combined score into the uncertain band (0.63) rather than a confident AI classification.
+The LLM signal scores this ~0.90, and with the text long enough (80+ words) for the stylometric signal to contribute meaningfully, the combined score clears the 0.75 threshold into a confident AI classification.
 
 **Human example** — informal human writing:
 
@@ -184,7 +184,7 @@ curl http://127.0.0.1:5000/log
 ## Known Limitations
 
 - **Formal human writing misclassified as AI.** Academic essays and legal briefs written by humans have low sentence-length variance, controlled vocabulary, and measured punctuation — all of which the stylometric signal reads as AI-like, and which the LLM signal may also score high. This is the most likely false-positive scenario.
-- **Short text (under 80 words) produces unreliable stylometric scores.** Sentence-length variance is statistically meaningless with only a couple of sentences, so short content yields a near-meaningless `stylo_score`. The system still runs but operates with low signal quality — as seen in the AI example above, which landed as *uncertain* (0.63) rather than *likely AI*.
+- **Short text (under 80 words) produces unreliable stylometric scores.** Sentence-length variance is statistically meaningless with only a couple of sentences, and type-token ratio is inflated by short length regardless of authorship. Rather than let these metrics vote confidently on thin evidence, they abstain (return a neutral 0.5) below their reliability thresholds, so short submissions lean more heavily on the LLM signal.
 
 ---
 
@@ -192,6 +192,8 @@ curl http://127.0.0.1:5000/log
 
 Having the submission flow mapped out in planning.md before writing any code made implementation straightforward — the sequence of clean, call LLM, call stylometrics, combine scores, generate label, log, respond was already decided, so each function had a clear job.
 Two implementation details diverged from the spec in useful ways. First, appeal records in the audit log are tagged with type: "appeal" while classification entries have no type field — this allows the appeal lookup to reliably find the original submission without accidentally matching a prior appeal sharing the same content_id, a collision case the spec didn't anticipate. Second, the audit log uses a full-file read-modify-write on each submission rather than append-only writes. This is safe for the project's scope since Flask's dev server is single-threaded, but a production version would need a write lock or a proper database.
+
+The TTR heuristic was recalibrated mid-implementation to abstain (return 0.5) on texts under 80 words, matching the sentence-variance metric's existing short-text behavior. Short text has artificially high TTR regardless of authorship, so allowing it to vote confidently human on every short sample was systematically pulling AI verdicts into the uncertain band.
 
 ---
 

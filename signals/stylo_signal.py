@@ -20,6 +20,11 @@ SENTENCE_STDDEV_HUMAN = 8.0
 TTR_AI = 0.40
 TTR_HUMAN = 0.75
 
+# TTR is inversely tied to length: short texts have few chances to repeat a word,
+# so they score high TTR regardless of authorship. Below this word count the
+# metric carries no reliable signal and abstains (returns neutral).
+TTR_MIN_WORDS = 80
+
 # Punctuation density: AI text clusters around a moderate, consistent density.
 # Deviation in either direction reads as more human.
 PUNCT_TARGET = 0.05
@@ -53,7 +58,8 @@ def _sentence_variance_score(text: str) -> float:
 def _ttr_score(text: str) -> float:
     """1.0 = low vocabulary diversity (AI-like), 0.0 = high diversity."""
     words = [w.lower() for w in _WORD.findall(text)]
-    if not words:
+    if len(words) < TTR_MIN_WORDS:
+        # Too short for TTR to be meaningful; abstain rather than vote "human".
         return 0.5
 
     ttr = len(set(words)) / len(words)
